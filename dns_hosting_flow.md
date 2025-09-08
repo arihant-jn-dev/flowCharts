@@ -4,7 +4,7 @@
 graph TD
     A[👤 User Types: www.example.com<br/>in Browser] --> B[🔍 Browser DNS Cache Check<br/>Cache Duration: 5-60 minutes<br/>🔹 Checks local cache first<br/>🔹 If found: Returns IP immediately<br/>🔹 If expired/missing: Continue to OS]
     
-    B -->|Cache Miss| C[💻 Operating System<br/>DNS Cache Check<br/>🔹 Windows: DNS Client Service<br/>🔹 macOS/Linux: nscd/systemd-resolved<br/>🔹 Cache TTL: varies by OS<br/>🔹 Hosts file check (/etc/hosts)]
+    B -->|Cache Miss| C[💻 Operating System<br/>DNS Cache Check<br/>🔹 Windows: DNS Client Service<br/>🔹 macOS/Linux: nscd/systemd-resolved<br/>🔹 Cache TTL: varies by OS<br/>🔹 Hosts file check /etc/hosts]
     
     C -->|Cache Miss| D[🌐 ISP DNS Resolver<br/>Recursive DNS Server<br/>🔹 Primary: 8.8.8.8 Google<br/>🔹 Secondary: 1.1.1.1 Cloudflare<br/>🔹 ISP Default: Comcast/Verizon<br/>🔹 Handles recursive lookup process]
     
@@ -22,7 +22,7 @@ graph TD
     
     H --> H3[🔗 CNAME Record<br/>blog.example.com → www.example.com<br/>🔹 Alias to another domain<br/>🔹 Flexible subdomain management<br/>🔹 Points to canonical name]
     
-    H --> H4[📧 MX Record<br/>example.com → mail.example.com<br/>🔹 Email server routing<br/>🔹 Priority: 10 (lower = higher priority)<br/>🔹 Multiple servers for redundancy]
+    H --> H4[📧 MX Record<br/>example.com → mail.example.com<br/>🔹 Email server routing<br/>🔹 Priority: 10 lower = higher priority<br/>🔹 Multiple servers for redundancy]
     
     H --> H5[📝 TXT Record<br/>Verification & Configuration<br/>🔹 SPF: v=spf1 include:_spf.google.com<br/>🔹 DKIM: Domain key verification<br/>🔹 Domain verification for services]
     
