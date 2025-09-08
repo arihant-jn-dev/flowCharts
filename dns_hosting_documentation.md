@@ -3,6 +3,27 @@
 ## Overview
 This document explains how DNS (Domain Name System) hosting works, using real-world examples to illustrate each step of the DNS resolution process from when a user types a domain name to when they receive the website content.
 
+## 🎯 **Quick Responsibilities Overview**
+
+**The DNS resolution process involves 7 key steps, each with a specific responsibility:**
+
+1. **👤 User Browser** → **Triggers** the DNS lookup process
+2. **🔍 Browser Cache** → **Speed up** frequent site visits (5-60 min cache)
+3. **💻 OS Cache** → **Share** DNS data across all applications (1-24 hr cache)
+4. **🌐 DNS Resolver** → **Manage** the recursive query process
+5. **🏛️ Root Servers** → **Direct** traffic to correct TLD servers (.com, .org, etc.)
+6. **🌍 TLD Servers** → **Identify** who manages each specific domain
+7. **🎯 Authoritative DNS** → **Provide** the final IP address answer
+
+**🎯 Simple Analogy**: Think of it like asking for directions:
+- **You** ask for directions to "123 Main Street"
+- **Your memory** checks if you've been there recently
+- **Family/friends** check if anyone else knows
+- **Phone book** looks up the general area
+- **City directory** finds the right neighborhood
+- **Street map** locates the exact block
+- **Building directory** gives you the exact address
+
 ## Table of Contents
 - [Real-World Example Walkthrough](#real-world-example-walkthrough)
 - [Detailed Step-by-Step Process](#detailed-step-by-step-process)
@@ -28,220 +49,398 @@ Let's trace what happens when a user types **`www.example.com`** in their browse
 
 ---
 
+## 🏢 **Real-Life Domain Purchase & Setup Example**
+
+### **Step-by-Step: Buying "myawesomestore.com" from GoDaddy**
+
+Let's walk through a complete real-world scenario where you buy a domain and set up hosting:
+
+#### **📋 Initial Setup**
+- **You**: Small business owner wanting to sell handmade jewelry online
+- **Domain**: myawesomestore.com (purchased from GoDaddy for $12.99/year)
+- **Hosting**: Shared hosting with GoDaddy initially, later moved to AWS
+- **Email**: Google Workspace for professional email
+
+---
+
+### **🛒 Phase 1: Domain Purchase (What Happens Behind the Scenes)**
+
+**What You Do**: Purchase "myawesomestore.com" from GoDaddy
+
+**What GoDaddy Does**:
+1. **Checks Domain Availability**: Queries .com registry to ensure domain isn't taken
+2. **Registers Domain**: Submits registration to VeriSign (.com registry)
+3. **Sets Default Nameservers**: Points to GoDaddy's DNS servers
+4. **Creates DNS Zone**: Sets up basic A record pointing to GoDaddy's parking page
+
+**Default DNS Setup** (Automatically created by GoDaddy):
+```dns
+myawesomestore.com.     3600    IN    A       184.168.221.96    # GoDaddy parking page
+www.myawesomestore.com. 3600    IN    CNAME   myawesomestore.com.
+myawesomestore.com.     3600    IN    MX      10    smtp.secureserver.net.    # GoDaddy email
+myawesomestore.com.     3600    IN    NS      ns73.domaincontrol.com.       # GoDaddy nameserver 1
+myawesomestore.com.     3600    IN    NS      ns74.domaincontrol.com.       # GoDaddy nameserver 2
+```
+
+---
+
+### **🌐 Phase 2: Setting Up Web Hosting**
+
+**What You Do**: Purchase GoDaddy shared hosting plan ($5.99/month)
+
+**GoDaddy Automatically Updates DNS**:
+```dns
+# Before (parking page)
+myawesomestore.com.     3600    IN    A       184.168.221.96
+
+# After (hosting server)
+myawesomestore.com.     3600    IN    A       160.153.136.3     # GoDaddy hosting server
+www.myawesomestore.com. 3600    IN    CNAME   myawesomestore.com.
+```
+
+**📧 Email Setup with Google Workspace**:
+```dns
+# MX records for Google Workspace
+myawesomestore.com.     3600    IN    MX      1     aspmx.l.google.com.
+myawesomestore.com.     3600    IN    MX      5     alt1.aspmx.l.google.com.
+myawesomestore.com.     3600    IN    MX      5     alt2.aspmx.l.google.com.
+myawesomestore.com.     3600    IN    MX      10    alt3.aspmx.l.google.com.
+myawesomestore.com.     3600    IN    MX      10    alt4.aspmx.l.google.com.
+
+# Verification and security records
+myawesomestore.com.     300     IN    TXT     "google-site-verification=abc123xyz789"
+myawesomestore.com.     300     IN    TXT     "v=spf1 include:_spf.google.com ~all"
+```
+
+---
+
+### **🚀 Phase 3: Growing Business - Moving to AWS**
+
+**What You Do**: Business grows, move to AWS for better performance
+
+**DNS Migration Process**:
+1. **Create AWS Route 53 Hosted Zone**
+2. **Copy existing records**
+3. **Update nameservers at GoDaddy**
+4. **Wait for propagation**
+
+**New AWS Route 53 Configuration**:
+```dns
+# Web servers (load balanced)
+myawesomestore.com.     300     IN    A       52.91.75.15      # AWS ALB IP 1
+myawesomestore.com.     300     IN    A       52.91.75.16      # AWS ALB IP 2
+www.myawesomestore.com. 300     IN    CNAME   myawesomestore.com.
+
+# API subdomain
+api.myawesomestore.com. 300     IN    A       52.91.75.20      # API server
+
+# CDN for images
+cdn.myawesomestore.com. 300     IN    CNAME   d123abc.cloudfront.net.
+
+# Keep Google email
+myawesomestore.com.     3600    IN    MX      1     aspmx.l.google.com.
+# ... other MX records
+
+# Updated nameservers (at domain registrar)
+myawesomestore.com.     172800  IN    NS      ns-1234.awsdns-56.com.
+myawesomestore.com.     172800  IN    NS      ns-5678.awsdns-78.net.
+myawesomestore.com.     172800  IN    NS      ns-9012.awsdns-90.org.
+myawesomestore.com.     172800  IN    NS      ns-3456.awsdns-12.co.uk.
+```
+
+---
+
+## 🔍 **Complete DNS Resolution Journey: Real Example**
+
+Now when a customer in California visits your store:
+
+### **Customer Journey**: Sarah from Los Angeles wants to buy jewelry
+
+**Sarah types**: `www.myawesomestore.com` in her browser
+
+---
+
 ## Detailed Step-by-Step Process
 
 ### 1. 👤 **User Initiates Request**
-**What happens**: User types `www.example.com` and presses Enter
+**🎯 MAIN RESPONSIBILITY**: Trigger the DNS resolution process
+**What happens**: User types `www.myawesomestore.com` and presses Enter
 
 **Real Example**:
 ```
-User Input: www.example.com
-Browser: Chrome 118.0.5993.70
-Location: New York, NY
-Timestamp: 2025-09-08 14:30:25 EST
+User: Sarah from Los Angeles
+Input: www.myawesomestore.com
+Browser: Safari 16.6 on iPhone
+Location: Los Angeles, CA
+ISP: AT&T Mobile
+Timestamp: 2025-09-08 11:30:25 PST
 ```
 
 **Technical Details**:
-- Browser parses the URL
-- Checks if it's a valid domain format
+- Safari parses the URL `www.myawesomestore.com`
+- Validates domain format (✅ valid)
 - Initiates DNS resolution process
-- Starts with local caches first
+- **Main Responsibility**: Start the entire lookup chain
+
+**What comes from this step**: DNS query for "www.myawesomestore.com"
 
 ---
 
 ### 2. 🔍 **Browser DNS Cache Check**
-**What happens**: Browser checks its internal DNS cache
+**🎯 MAIN RESPONSIBILITY**: First-level caching to avoid unnecessary network requests
+**What happens**: Safari checks its internal DNS cache
 
 **Real Example**:
 ```bash
-# Chrome DNS cache (chrome://net-internals/#dns)
-Host: www.example.com
-TTL: 285 seconds remaining
-IP: 192.0.2.1
-Last Updated: 2025-09-08 14:25:30 EST
-Cache Status: HIT
+# Safari DNS cache check
+Domain: www.myawesomestore.com
+Cache Status: MISS (first time visiting this site)
+Reason: Never visited this domain before
+Next Action: Check OS cache
 ```
 
-**Cache Behavior**:
-- **Cache Duration**: 5-60 minutes (varies by browser)
-- **Storage**: In-memory cache
-- **Capacity**: ~1000 entries typically
-- **Clearing**: Automatic on TTL expiry or manual clear
+**What this step provides**:
+- **Cache Hit**: Instant IP address (0ms response time)
+- **Cache Miss**: Proceeds to next level
+- **Main Responsibility**: Speed up repeat visits
 
-**If Cache Miss**: Proceeds to OS-level cache
+**Cache Behavior**:
+- **Cache Duration**: 5-60 minutes for mobile Safari
+- **Storage**: In-memory cache (cleared when browser restarts)
+- **Capacity**: ~500-1000 entries on mobile devices
 
 ---
 
 ### 3. 💻 **Operating System DNS Cache**
-**What happens**: OS checks its DNS resolver cache
+**🎯 MAIN RESPONSIBILITY**: System-level caching shared across all applications
+**What happens**: iOS checks its DNS resolver cache
 
-**Real Example - Windows**:
-```cmd
-C:\> ipconfig /displaydns
-    www.example.com
-    ----------------------------------------
-    Record Name . . . . . : www.example.com
-    Record Type . . . . . : 1 (A Record)
-    Time To Live  . . . . : 298
-    Data Length . . . . . : 4
-    Section . . . . . . . : Answer
-    A (Host) Record . . . : 192.0.2.1
-```
-
-**Real Example - macOS/Linux**:
+**Real Example - iOS**:
 ```bash
-# Check system resolver
-$ dscacheutil -q host -a name www.example.com
-name: www.example.com
-ip_address: 192.0.2.1
+# iOS system DNS cache
+$ sudo dscacheutil -q host -a name www.myawesomestore.com
+# Result: No entry found (cache miss)
 
-# Flush DNS cache if needed
-$ sudo dscacheutil -flushcache
+# Cache details
+Domain: www.myawesomestore.com
+iOS Cache Status: MISS
+Cache Duration: 10-30 minutes typical
+Next Action: Query configured DNS resolver
 ```
+
+**What this step provides**:
+- **Cache Hit**: Shared DNS data across all iPhone apps
+- **Cache Miss**: Forwards to DNS resolver
+- **Main Responsibility**: System-wide DNS efficiency
 
 **OS Cache Details**:
-- **Windows**: DNS Client Service cache
-- **macOS**: dscacheutil/mDNSResponder
-- **Linux**: systemd-resolved or nscd
-- **Cache TTL**: Varies by OS (typically 1-24 hours)
+- **iOS**: mDNSResponder daemon
+- **Cache TTL**: Respects TTL from DNS records (minimum 10 seconds)
+- **Shared**: Used by Safari, Mail, other apps
 
 ---
 
 ### 4. 🌐 **ISP DNS Resolver Query**
-**What happens**: Request goes to configured DNS resolver
+**🎯 MAIN RESPONSIBILITY**: Handle recursive DNS queries and manage the lookup process
+**What happens**: Request goes to AT&T's DNS resolver
 
 **Real Example Configuration**:
 ```bash
-# Current DNS servers
-$ cat /etc/resolv.conf
-nameserver 8.8.8.8        # Google Public DNS (Primary)
-nameserver 1.1.1.1        # Cloudflare DNS (Secondary)
-nameserver 75.75.75.75    # Verizon DNS (ISP Default)
+# AT&T Mobile DNS servers (automatically configured)
+Primary DNS: 68.94.156.1     # AT&T DNS Server 1
+Secondary DNS: 68.94.157.1   # AT&T DNS Server 2
+Backup: 8.8.8.8              # Google DNS (if AT&T fails)
 ```
 
-**Popular Public DNS Resolvers**:
-- **Google**: 8.8.8.8, 8.8.4.4
-- **Cloudflare**: 1.1.1.1, 1.0.0.1
-- **Quad9**: 9.9.9.9, 149.112.112.112
-- **OpenDNS**: 208.67.222.222, 208.67.220.220
+**What AT&T's DNS Resolver Does**:
+1. **Receives Query**: "What's the IP for www.myawesomestore.com?"
+2. **Checks Own Cache**: First time query - cache miss
+3. **Starts Recursive Process**: Queries root servers
+4. **Main Responsibility**: Manage the entire lookup process for Sarah
 
 **Resolver Features**:
-- **Recursive queries**: Handles the entire lookup process
-- **Caching**: Stores results to reduce latency
-- **Security**: Malware/phishing protection
-- **Performance**: Anycast for global distribution
+- **Recursive queries**: Handles the complete lookup chain
+- **Caching**: Stores results for other AT&T customers
+- **Performance**: Geographically distributed servers
 
 ---
 
 ### 5. 🏛️ **Root DNS Servers Query**
-**What happens**: Resolver queries one of 13 root server clusters
+**🎯 MAIN RESPONSIBILITY**: Direct queries to the appropriate Top-Level Domain (TLD) servers
+**What happens**: AT&T resolver queries one of 13 root server clusters
 
 **Real Example Query**:
 ```bash
-$ dig @a.root-servers.net www.example.com
+# AT&T resolver → Root server query
+Query from: AT&T DNS (68.94.156.1)
+Query to: a.root-servers.net (198.41.0.4)
+Question: "Where can I find info about .com domains?"
 
-;; QUESTION SECTION:
-;www.example.com.               IN      A
-
-;; AUTHORITY SECTION:
-com.                    172800  IN      NS      a.gtld-servers.net.
-com.                    172800  IN      NS      b.gtld-servers.net.
-com.                    172800  IN      NS      c.gtld-servers.net.
-...
+Response from Root Server:
+"For .com domains, ask these TLD servers:"
+- a.gtld-servers.net
+- b.gtld-servers.net
+- c.gtld-servers.net
+... (13 total)
 ```
 
-**Root Server Details**:
-- **Total**: 13 letter-named root servers (a-m.root-servers.net)
-- **Physical Locations**: 1000+ servers worldwide using Anycast
-- **Managed By**: IANA (Internet Assigned Numbers Authority)
-- **Response**: Returns .com TLD nameservers
-- **Uptime**: 99.99%+ availability
+**What this step provides**:
+- **Input**: Domain query for www.myawesomestore.com
+- **Output**: List of .com TLD servers
+- **Main Responsibility**: Traffic direction to correct TLD
 
-**Root Server Operators**:
-- **A**: VeriSign
-- **B**: USC-ISI
-- **C**: Cogent Communications
-- **D**: University of Maryland
-- **E**: NASA Ames Research Center
-- **F**: Internet Systems Consortium
-- **G**: US Department of Defense
-- **H**: US Army Research Lab
-- **I**: Netnod (Sweden)
-- **J**: VeriSign
-- **K**: RIPE NCC (Netherlands)
-- **L**: ICANN
-- **M**: WIDE Project (Japan)
+**Root Server Details**:
+- **Closest to LA**: Anycast routes to Los Angeles root server instance
+- **Response Time**: ~10-20ms from LA
+- **What they know**: Only TLD server locations, not domain details
 
 ---
 
 ### 6. 🌍 **TLD DNS Servers Query**
-**What happens**: Query goes to .com TLD servers
+**🎯 MAIN RESPONSIBILITY**: Provide authoritative nameserver information for specific domains
+**What happens**: AT&T resolver queries .com TLD servers
 
 **Real Example Query**:
 ```bash
-$ dig @a.gtld-servers.net www.example.com
+# AT&T resolver → .com TLD server query
+Query from: AT&T DNS (68.94.156.1)
+Query to: a.gtld-servers.net
+Question: "Who manages myawesomestore.com?"
 
-;; QUESTION SECTION:
-;www.example.com.               IN      A
-
-;; AUTHORITY SECTION:
-example.com.            172800  IN      NS      ns-1234.awsdns-01.com.
-example.com.            172800  IN      NS      ns-5678.awsdns-02.net.
-example.com.            172800  IN      NS      ns-9012.awsdns-03.org.
-example.com.            172800  IN      NS      ns-3456.awsdns-04.co.uk.
+Response from .com TLD Server:
+"myawesomestore.com is managed by these AWS nameservers:"
+- ns-1234.awsdns-56.com.
+- ns-5678.awsdns-78.net.
+- ns-9012.awsdns-90.org.
+- ns-3456.awsdns-12.co.uk.
 ```
 
-**TLD Server Details**:
-- **.com TLD**: Managed by VeriSign
-- **Servers**: 13 clusters (a-m.gtld-servers.net)
-- **Domain Count**: 160+ million .com domains
-- **Response**: Returns authoritative nameservers for example.com
-- **Update Frequency**: Real-time domain registration updates
+**What this step provides**:
+- **Input**: Query for myawesomestore.com
+- **Output**: AWS Route 53 nameserver addresses
+- **Main Responsibility**: Identify domain authority
 
-**Other TLD Examples**:
-- **.org**: Managed by Public Interest Registry
-- **.net**: Managed by VeriSign
-- **.edu**: Managed by Educause
-- **.gov**: Managed by General Services Administration
-- **.uk**: Managed by Nominet
+**TLD Server Details**:
+- **.com Registry**: Managed by VeriSign
+- **Database**: Contains 160+ million .com domain registrations
+- **What they know**: Which nameservers are authoritative for each domain
+- **Update Source**: GoDaddy updated this when you changed nameservers
 
 ---
 
 ### 7. 🎯 **Authoritative DNS Server Query**
-**What happens**: Final query to domain's authoritative DNS servers
+**🎯 MAIN RESPONSIBILITY**: Provide the final, authoritative answer with actual IP addresses
+**What happens**: AT&T resolver queries AWS Route 53 nameservers
 
 **Real Example Query**:
 ```bash
-$ dig @ns-1234.awsdns-01.com www.example.com
+# AT&T resolver → AWS Route 53 query
+Query from: AT&T DNS (68.94.156.1)
+Query to: ns-1234.awsdns-56.com
+Question: "What's the IP address for www.myawesomestore.com?"
 
-;; QUESTION SECTION:
-;www.example.com.               IN      A
-
-;; ANSWER SECTION:
-www.example.com.        300     IN      A       192.0.2.1
-www.example.com.        300     IN      A       192.0.2.2
-
-;; AUTHORITY SECTION:
-example.com.            172800  IN      NS      ns-1234.awsdns-01.com.
-example.com.            172800  IN      NS      ns-5678.awsdns-02.net.
-
-;; ADDITIONAL SECTION:
-ns-1234.awsdns-01.com.  172800  IN      A       205.251.196.210
-ns-5678.awsdns-02.net.  172800  IN      A       205.251.199.22
+Response from AWS Route 53:
+www.myawesomestore.com.  300  IN  CNAME  myawesomestore.com.
+myawesomestore.com.      300  IN  A      52.91.75.15
+myawesomestore.com.      300  IN  A      52.91.75.16
 ```
 
-**Authoritative Server Details**:
-- **Provider**: Amazon Route 53
-- **Server Count**: 4 nameservers for redundancy
-- **Geographic Distribution**: Global Anycast network
-- **Response**: Actual IP addresses for www.example.com
+**What this step provides**:
+- **Input**: Query for www.myawesomestore.com
+- **Output**: Actual IP addresses (52.91.75.15 and 52.91.75.16)
+- **Main Responsibility**: Final authoritative answer
+
+**AWS Route 53 Details**:
+- **Your Configuration**: Load balancer with 2 IP addresses
 - **TTL**: 300 seconds (5 minutes)
+- **Geographic Routing**: Could return different IPs based on Sarah's location
+- **Health Checks**: Only returns healthy server IPs
+
+**Complete Response Journey**:
+```bash
+# Final answer back to Sarah's iPhone
+www.myawesomestore.com → myawesomestore.com → 52.91.75.15, 52.91.75.16
+Response Time: ~50-100ms total
+Cache Duration: 300 seconds (5 minutes)
+```
+
+---
+
+## 🎯 **Main Responsibilities Summary**
+
+Here's what each step provides in our real myawesomestore.com example:
+
+| Step | Component | Main Responsibility | What They Provide | Real Example Output |
+|------|-----------|-------------------|------------------|-------------------|
+| 1 | **User Browser** | **Initiate Request** | DNS query trigger | "www.myawesomestore.com" |
+| 2 | **Browser Cache** | **Speed Optimization** | Cached IP (if available) | Cache MISS (first visit) |
+| 3 | **OS Cache** | **System-wide Efficiency** | Shared DNS data | Cache MISS (first visit) |
+| 4 | **DNS Resolver** | **Query Management** | Recursive lookup service | AT&T DNS starts process |
+| 5 | **Root Servers** | **Traffic Direction** | .com TLD server list | "Ask a.gtld-servers.net" |
+| 6 | **TLD Servers** | **Domain Authority** | Authoritative nameservers | "Ask ns-1234.awsdns-56.com" |
+| 7 | **Authoritative DNS** | **Final Answer** | Actual IP addresses | "52.91.75.15, 52.91.75.16" |
+
+### 🔄 **Real-World Responsibility Flow**
+
+**🚀 Performance Layer (Steps 1-3) - Sarah's Device**:
+- **Safari**: "Have I been to myawesomestore.com recently?" → NO
+- **iOS**: "Has any app on this iPhone looked this up?" → NO
+- **Purpose**: Minimize network requests and improve speed
+
+**🌐 Network Resolution Layer (Steps 4-7) - Internet Infrastructure**:
+- **AT&T DNS**: "I'll find this for you, let me ask the internet"
+- **Root Servers**: "For .com domains, check with VeriSign's TLD servers"
+- **TLD Servers**: "myawesomestore.com is managed by AWS Route 53"
+- **AWS Route 53**: "Here are the actual server IPs: 52.91.75.15 and 52.91.75.16"
+
+**⏱️ Timeline for Sarah's Request**:
+```
+0ms    - Sarah taps "Go" on iPhone
+5ms    - Safari checks cache (MISS)
+10ms   - iOS checks cache (MISS)
+15ms   - Query sent to AT&T DNS
+25ms   - AT&T queries root server
+35ms   - Root server responds with TLD info
+45ms   - AT&T queries .com TLD server
+60ms   - TLD server responds with AWS nameservers
+75ms   - AT&T queries AWS Route 53
+90ms   - AWS responds with IP addresses
+95ms   - Response cached and returned to Safari
+100ms  - Safari connects to 52.91.75.15
+```
+
+### 🏪 **What Each DNS Component Knows About Your Domain**
+
+**GoDaddy (Domain Registrar)**:
+```
+Domain: myawesomestore.com
+Owner: Your business details
+Expiry: 2026-09-08
+Nameservers: ns-1234.awsdns-56.com (AWS Route 53)
+```
+
+**VeriSign (.com Registry)**:
+```
+Domain: myawesomestore.com
+Nameservers: ns-1234.awsdns-56.com, ns-5678.awsdns-78.net, ...
+Last Updated: When you changed from GoDaddy to AWS nameservers
+```
+
+**AWS Route 53 (DNS Hosting)**:
+```
+myawesomestore.com.      300  IN  A      52.91.75.15    # Load Balancer IP 1
+myawesomestore.com.      300  IN  A      52.91.75.16    # Load Balancer IP 2
+www.myawesomestore.com.  300  IN  CNAME  myawesomestore.com.
+api.myawesomestore.com.  300  IN  A      52.91.75.20    # API server
+myawesomestore.com.      3600 IN  MX     1  aspmx.l.google.com.  # Google email
+```
 
 ---
 
 ## DNS Record Types Explained
 
 ### 📍 **A Record (Address Record)**
+**🎯 MAIN RESPONSIBILITY**: Map domain names to IPv4 addresses for web traffic
 **Purpose**: Maps domain name to IPv4 address
 
 **Real Example**:
@@ -260,6 +459,7 @@ api.example.com.    300    IN    A    192.0.2.10
 ---
 
 ### 📍 **AAAA Record (IPv6 Address)**
+**🎯 MAIN RESPONSIBILITY**: Enable IPv6 connectivity and future-proof domains
 **Purpose**: Maps domain name to IPv6 address
 
 **Real Example**:
@@ -277,6 +477,7 @@ api.example.com.    300    IN    AAAA    2001:db8:85a3::8a2e:370:7335
 ---
 
 ### 🔗 **CNAME Record (Canonical Name)**
+**🎯 MAIN RESPONSIBILITY**: Create aliases and enable flexible domain management
 **Purpose**: Creates alias pointing to another domain
 
 **Real Example**:
@@ -297,6 +498,7 @@ docs.example.com.       300    IN    CNAME    example.gitbook.io.
 ---
 
 ### 📧 **MX Record (Mail Exchange)**
+**🎯 MAIN RESPONSIBILITY**: Route email traffic to appropriate mail servers
 **Purpose**: Specifies mail servers for domain
 
 **Real Example**:
@@ -321,6 +523,7 @@ example.com.    300    IN    MX    5     alt2.aspmx.l.google.com.
 ---
 
 ### 📝 **TXT Record (Text Record)**
+**🎯 MAIN RESPONSIBILITY**: Store verification data and configuration information
 **Purpose**: Stores arbitrary text data for verification and configuration
 
 **Real Examples**:
