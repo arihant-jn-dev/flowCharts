@@ -1,3 +1,6 @@
+# Kubernetes Traffic Flow Diagram
+
+```mermaid
 graph TD
     A[👤 User Browser<br/>Requests: example.com] --> B[🌐 DNS Resolution<br/>Amazon Route 53<br/>🔹 Returns ALB IP address<br/>🔹 TTL: 300s typical]
     
@@ -44,3 +47,4 @@ graph TD
     style E fill:#e8f5e8
     style F fill:#e3f2fd
     style G fill:#fce4ec
+```
