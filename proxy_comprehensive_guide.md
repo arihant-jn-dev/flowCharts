@@ -567,8 +567,8 @@ graph TD
     end
     
     subgraph "Cache Strategies"
-        TTL[⏰ Time-based (TTL)<br/>Expire after time]
-        LRU[📊 LRU (Least Recently Used)<br/>Remove old unused data]
+        TTL[⏰ Time-based TTL<br/>Expire after time]
+        LRU[📊 LRU Least Recently Used<br/>Remove old unused data]
         Manual[🎛️ Manual Invalidation<br/>Explicit cache clearing]
         Event[📢 Event-driven<br/>Invalidate on data changes]
     end
