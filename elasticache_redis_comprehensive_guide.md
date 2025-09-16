@@ -348,6 +348,17 @@ graph TD
 
 ## Handling Heavy Traffic
 
+### Redis Connection Limits and Traffic Handling
+
+#### Connection Limits by Instance Type
+| Instance Type | Max Connections | Memory | Typical Use Case |
+|---------------|----------------|---------|------------------|
+| t3.micro | 2,500 | 0.5 GB | Development |
+| t3.small | 2,500 | 1.5 GB | Small apps |
+| r6g.large | 65,000 | 13 GB | Production |
+| r6g.xlarge | 65,000 | 26 GB | High traffic |
+| r6g.2xlarge | 65,000 | 52 GB | Enterprise |
+
 ### Connection Management Strategy
 
 ```mermaid
@@ -379,11 +390,187 @@ graph TD
     style Q fill:#c8e6c9
 ```
 
+### Handling Traffic Beyond Connection Limits
+
+#### 1. Connection Pooling Strategy
+```mermaid
+graph TD
+    A[10,000 Concurrent Users] --> B[Application Servers]
+    B --> C[Connection Pool Manager]
+    
+    subgraph C [Connection Pool]
+        D[Pool Size: 50 connections]
+        E[Queue: Waiting requests]
+        F[Timeout: 5 seconds]
+    end
+    
+    C --> G[Redis<br/>Max 65,000 connections<br/>Only using 50]
+    
+    style A fill:#ffeb3b
+    style G fill:#4caf50
+```
+
+#### 2. Request Queuing and Throttling
+```mermaid
+flowchart TD
+    A[Incoming Request] --> B{Connection Available?}
+    B -->|Yes| C[Process Immediately]
+    B -->|No| D{Queue Full?}
+    D -->|No| E[Add to Queue<br/>Wait for connection]
+    D -->|Yes| F[Return 503<br/>Service Unavailable]
+    
+    E --> G{Timeout Reached?}
+    G -->|No| H[Connection Available<br/>Process Request]
+    G -->|Yes| I[Return Timeout Error]
+    
+    style C fill:#4caf50
+    style F fill:#f44336
+    style I fill:#ff9800
+```
+
+#### 3. Load Balancing Across Multiple Nodes
+```mermaid
+graph TD
+    A[High Traffic<br/>100,000 RPS] --> B[Load Balancer]
+    
+    B --> C[App Server 1<br/>Pool: 20 connections]
+    B --> D[App Server 2<br/>Pool: 20 connections]
+    B --> E[App Server 3<br/>Pool: 20 connections]
+    B --> F[App Server N<br/>Pool: 20 connections]
+    
+    C --> G[Redis Node 1]
+    D --> H[Redis Node 2]
+    E --> I[Redis Node 3]
+    F --> J[Redis Node N]
+    
+    style A fill:#ffeb3b
+    style G fill:#4caf50
+    style H fill:#4caf50
+    style I fill:#4caf50
+    style J fill:#4caf50
+```
+
 **Benefits:**
 - ✓ Reduced connection overhead
 - ✓ Better resource utilization
 - ✓ Connection reuse
 - ✓ Controlled resource usage
+- ✓ Graceful degradation under load
+- ✓ Protection against connection exhaustion
+
+### What Happens When Traffic Exceeds Limits?
+
+#### Scenario 1: Connection Exhaustion
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as Application
+    participant R as Redis
+    
+    Note over R: Max connections: 65,000<br/>Current: 64,999
+    
+    C->>A: New Request
+    A->>R: Attempt connection
+    R-->>A: Connection refused
+    A-->>C: Error: Connection timeout
+    
+    Note over A: Without proper handling:<br/>- Request fails<br/>- User sees error<br/>- Poor experience
+```
+
+#### Scenario 2: With Proper Connection Handling
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as Application
+    participant P as Pool
+    participant R as Redis
+    
+    C->>A: New Request
+    A->>P: Request connection
+    
+    alt Connection Available
+        P->>A: Return connection
+        A->>R: Execute command
+        R-->>A: Response
+        A->>P: Return connection to pool
+        A-->>C: Success response
+    else Pool Exhausted
+        P->>A: Queue request
+        Note over P: Wait for available connection<br/>or timeout after 5s
+        alt Connection becomes available
+            P->>A: Connection available
+            A->>R: Execute command
+            A-->>C: Success response
+        else Timeout
+            A-->>C: 503 Service Temporarily Unavailable
+        end
+    end
+```
+
+### Advanced Traffic Handling Strategies
+
+#### 1. Circuit Breaker with Fallback
+```mermaid
+stateDiagram-v2
+    [*] --> Closed
+    Closed --> Open : Connection failures > 50%
+    Open --> HalfOpen : Timer expires (30s)
+    HalfOpen --> Closed : Success rate > 95%
+    HalfOpen --> Open : Failure detected
+    
+    Closed : Normal Operation<br/>All requests to Redis
+    Open : Circuit Open<br/>Route to fallback cache
+    HalfOpen : Testing Recovery<br/>Limited Redis traffic
+```
+
+#### 2. Multi-Tier Caching Strategy
+```mermaid
+graph TD
+    A[High Traffic Request] --> B{L1 Cache Hit?}
+    B -->|Yes| C[Return from Memory<br/>~0.1ms]
+    B -->|No| D{Redis Available?}
+    D -->|Yes| E[Query Redis<br/>~1-2ms]
+    D -->|No| F[Query Database<br/>~50-200ms]
+    
+    E --> G{Success?}
+    G -->|Yes| H[Cache in L1<br/>Return data]
+    G -->|No| F
+    
+    style C fill:#4caf50
+    style H fill:#4caf50
+    style F fill:#ff9800
+```
+
+#### 3. Auto-Scaling Response
+```mermaid
+graph TD
+    A[Traffic Spike Detected] --> B[CloudWatch Metrics]
+    B --> C{Connection Usage > 80%?}
+    C -->|Yes| D[Trigger Auto-Scaling]
+    
+    D --> E[Add Read Replicas]
+    D --> F[Scale Up Instance Size]
+    D --> G[Enable Cluster Mode]
+    
+    E --> H[Distribute Read Load]
+    F --> I[Increase Connection Limit]
+    G --> J[Horizontal Write Scaling]
+    
+    style C fill:#ff9800
+    style H fill:#4caf50
+    style I fill:#4caf50
+    style J fill:#4caf50
+```
+
+### Best Practices for High Traffic Scenarios
+
+#### Connection Pool Configuration
+| Setting | Small App | Medium App | Large App |
+|---------|-----------|------------|-----------|
+| Pool Size | 5-10 | 20-50 | 100-200 |
+| Max Wait Time | 5s | 3s | 1s |
+| Idle Timeout | 300s | 600s | 900s |
+| Validation Query | PING | PING | PING |
 
 ### Caching Patterns for High Traffic
 
